@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Eye Detection from Video</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+    <script defer src="video.js"></script>
+    <script src="./face-api.min.js"></script>
+    <script src="./scripts.js"></script>
+    <style>
+      img {
+        max-width: 45%;
+      }
+      canvas {
+        position: absolute;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- <video id="inputVideo" controls></video> -->
+    <video
+
+    src="./video/child_1234_looking.mp4"
+    controls
+    autoplay
+    id="inputVideo" 
+  ></video>
+    <canvas id="overlay" style="display: none"></canvas>
+    <button id="startButton">Start Processing</button>
+    <div id="outputContainer"></div>
+    <canvas id="canvas"></canvas>
+    <img id="face" src="./images/youngman2.png" />
+  </body>
+</html>

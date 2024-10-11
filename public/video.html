@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crop Eyes from Video</title>
+  </head>
+  <body>
+    <script src="./face-api.min.js"></script>
+<script src="./video.js"></script>
+    <!-- Video Element -->
+    <video
+      id="video"
+      src="./video/child_1234_looking.mp4"
+      controls
+      autoplay
+    ></video>
+
+    <!-- Canvas Elements for Cropped Eyes -->
+    <canvas id="leftEyeCanvas"></canvas>
+    <canvas id="rightEyeCanvas"></canvas>
+
+    <script>
+      const video = document.getElementById('video');
+      const leftEyeCanvas = document.getElementById('leftEyeCanvas');
+      const rightEyeCanvas = document.getElementById('rightEyeCanvas');
+      const leftEyeContext = leftEyeCanvas.getContext('2d');
+      const rightEyeContext = rightEyeCanvas.getContext('2d');
+
+      // Define the eye region (you may need to adjust these coordinates)
+      const eyeWidth = 100; // Width of the eye region
+      const eyeHeight = 50; // Height of the eye region
+      const leftEyePosition = { x: 50, y: 50 }; // Position of the left eye
+      const rightEyePosition = { x: 200, y: 50 }; // Position of the right eye
+
+      // Set canvas dimensions to match the eye regions
+      leftEyeCanvas.width = eyeWidth;
+      leftEyeCanvas.height = eyeHeight;
+      rightEyeCanvas.width = eyeWidth;
+      rightEyeCanvas.height = eyeHeight;
+
+      video.addEventListener('play', () => {
+        const interval = setInterval(() => {
+          if (video.paused || video.ended) {
+            clearInterval(interval);
+            return;
+          }
+          // Draw current frame to canvas
+          leftEyeContext.drawImage(
+            video,
+            leftEyePosition.x,
+            leftEyePosition.y,
+            eyeWidth,
+            eyeHeight,
+            0,
+            0,
+            eyeWidth,
+            eyeHeight
+          );
+          rightEyeContext.drawImage(
+            video,
+            rightEyePosition.x,
+            rightEyePosition.y,
+            eyeWidth,
+            eyeHeight,
+            0,
+            0,
+            eyeWidth,
+            eyeHeight
+          );
+        }, 100); // Capture frame every 100ms
+      });
+    </script>
+  </body>
+</html>
