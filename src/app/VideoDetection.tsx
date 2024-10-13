@@ -7,6 +7,7 @@ import JSZip from 'jszip';
 export default function VideoDetection(): JSX.Element {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [processing, setProcessing] = useState<boolean>(false);
+  const [videoFile, setVideoFile] = useState<string | null>('/video/child.mp4');
   const zip = new JSZip();
   const leftEyeFolder = zip.folder('left-eye');
   const rightEyeFolder = zip.folder('right-eye');
@@ -23,6 +24,13 @@ export default function VideoDetection(): JSX.Element {
     loadModels();
   }, []);
 
+  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setVideoFile(URL.createObjectURL(file));
+    }
+  };
+
   const processVideo = () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
@@ -38,7 +46,13 @@ export default function VideoDetection(): JSX.Element {
       }
 
       const detections = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .detectSingleFace(
+          video,
+          new faceapi.TinyFaceDetectorOptions({
+            inputSize: 224,
+            scoreThreshold: 0.5,
+          })
+        )
         .withFaceLandmarks();
       if (detections) {
         const leftEye = detections.landmarks.getLeftEye();
@@ -46,7 +60,7 @@ export default function VideoDetection(): JSX.Element {
         cropAndStoreEye(leftEye, 'left');
         cropAndStoreEye(rightEye, 'right');
       }
-    }, 1000 / 30); // Capture at 30 FPS
+    }, 1000 / 30); // Consistent 30 FPS frame capture
   };
 
   const cropAndStoreEye = (
@@ -72,7 +86,6 @@ export default function VideoDetection(): JSX.Element {
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
           const filename = `${eyeType}_eye_${timestamp}.png`;
 
-          // Convert the Blob to ArrayBuffer and add to the appropriate folder in zip
           const arrayBuffer = await blob.arrayBuffer();
           if (eyeType === 'left') {
             leftEyeFolder?.file(filename, arrayBuffer);
@@ -97,10 +110,18 @@ export default function VideoDetection(): JSX.Element {
 
   return (
     <div className="w-full flex flex-col items-center justify-center">
-      <video ref={videoRef} src="/video/child.mp4" controls width="600" />
+      <input
+        type="file"
+        accept="video/*"
+        onChange={handleVideoUpload}
+        className="my-4"
+      />
+      {videoFile && (
+        <video ref={videoRef} src={videoFile} controls width="600" />
+      )}
       <button
         onClick={processVideo}
-        disabled={processing}
+        disabled={processing || !videoFile}
         className="bg-gray-200 text-gray-900 p-2 rounded-md m-8"
       >
         {processing ? 'Processing...' : 'Start Eye Detection'}

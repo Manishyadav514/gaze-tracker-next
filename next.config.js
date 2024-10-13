@@ -26,6 +26,7 @@ const nextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV !== 'development',
   },
+  images: { unoptimized: true },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
