@@ -8,9 +8,12 @@ export default function VideoDetection(): JSX.Element {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [processing, setProcessing] = useState<boolean>(false);
   const [videoFile, setVideoFile] = useState<string | null>('/video/child.mp4');
+  const [progress, setProgress] = useState<number>(0);
+  const [videoLength, setVideoLength] = useState<number>(0);
   const zip = new JSZip();
   const leftEyeFolder = zip.folder('left-eye');
   const rightEyeFolder = zip.folder('right-eye');
+  const framePerSecond: number = 30;
 
   useEffect(() => {
     const loadModels = async () => {
@@ -35,12 +38,14 @@ export default function VideoDetection(): JSX.Element {
     if (!videoRef.current) return;
     const video = videoRef.current;
     video.play();
+    setVideoLength(video.duration);
     setProcessing(true);
 
     const interval = setInterval(async () => {
-      if (video.paused || video.ended) {
+      if (video.currentTime >= video.duration) {
         clearInterval(interval);
         setProcessing(false);
+        setProgress(100);
         downloadZip();
         return;
       }
@@ -57,16 +62,20 @@ export default function VideoDetection(): JSX.Element {
       if (detections) {
         const leftEye = detections.landmarks.getLeftEye();
         const rightEye = detections.landmarks.getRightEye();
-        cropAndStoreEye(leftEye, 'left');
-        cropAndStoreEye(rightEye, 'right');
+        cropAndStoreEye(leftEye, 'left', video.currentTime);
+        cropAndStoreEye(rightEye, 'right', video.currentTime);
       }
-    }, 1000 / 30); // Consistent 30 FPS frame capture
+
+      setProgress((video.currentTime / video.duration) * 100);
+    }, 1000 / framePerSecond);
   };
 
   const cropAndStoreEye = (
     eyeLandmarks: faceapi.Point[],
-    eyeType: 'left' | 'right'
+    eyeType: 'left' | 'right',
+    currentTime: number
   ) => {
+    // console.log(currentTime);
     if (!videoRef.current) return;
     const video = videoRef.current;
 
@@ -83,7 +92,7 @@ export default function VideoDetection(): JSX.Element {
 
       canvas.toBlob(async (blob) => {
         if (blob) {
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const timestamp = currentTime.toFixed(2).replace('.', '-');
           const filename = `${eyeType}_eye_${timestamp}.png`;
 
           const arrayBuffer = await blob.arrayBuffer();
@@ -110,27 +119,55 @@ export default function VideoDetection(): JSX.Element {
 
   return (
     <div className="w-full flex flex-col items-center justify-center">
-      <input
-        type="file"
-        accept="video/*"
-        onChange={handleVideoUpload}
-        className="my-4"
-      />
-      {videoFile && (
-        <video ref={videoRef} src={videoFile} controls width="600" />
-      )}
-      <button
-        onClick={processVideo}
-        disabled={processing || !videoFile}
-        className="bg-gray-200 text-gray-900 p-2 rounded-md m-8"
-      >
-        {processing ? 'Processing...' : 'Start Eye Detection'}
-      </button>
-      {processing && (
-        <p className="bg-gray-200 text-gray-900 p-4">
-          Processing video, please wait...
-        </p>
-      )}
+      <div className="container w-full flex justify-center items-center">
+        <input
+          type="file"
+          accept="video/*"
+          onChange={handleVideoUpload}
+          className="my-4"
+        />
+        <button
+          onClick={processVideo}
+          disabled={processing || !videoFile}
+          className="bg-gray-200 text-gray-900 p-2 rounded-md m-8"
+        >
+          {processing ? 'Processing...' : 'Start Eye Detection'}
+        </button>
+      </div>
+      <div className="w-full flex justify-center container items-center mx-auto">
+        {processing && (
+          <div className="w-full max-w-xl p-4">
+            <div className="flex justify-between mb-2">
+              <span>Processing: {progress.toFixed(2)}%</span>
+              <span>Video Length: {videoLength.toFixed(2)}s</span>
+            </div>
+            <div className="w-full bg-gray-200 h-4 rounded-md">
+              <div
+                className="bg-blue-600 h-full rounded-md"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="container w-full flex flex-col justify-center items-center">
+        <div className="w-full max-w-96">
+          {videoFile && (
+            <video
+              ref={videoRef}
+              src={videoFile}
+              controls
+              className="w-auto h-auto"
+              onLoadedMetadata={() => {
+                if (videoRef.current) {
+                  setVideoLength(videoRef.current.duration);
+                }
+              }}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
