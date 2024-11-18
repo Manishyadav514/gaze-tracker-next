@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import * as faceapi from 'face-api.js';
 import JSZip from 'jszip';
+import path from 'path';
+import ProcessGaze from '../../../componennt/ProcessGaze';
 
 export default function VideoDetection(): JSX.Element {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -34,7 +36,25 @@ export default function VideoDetection(): JSX.Element {
     }
   };
 
-  const processVideo = () => {
+  const processVideo = async () => {
+    // Clear the output folder first and create necessary directories
+    const clearResponse = await fetch('/api/clear-output', { method: 'GET' });
+
+    // Check if the response is OK
+    if (!clearResponse.ok) {
+      // Try to parse the response as JSON if possible
+      let errorMessage = 'Failed to clear output folder';
+      try {
+        const errorResponse = await clearResponse.json();
+        errorMessage = errorResponse.error || errorMessage;
+      } catch (e) {
+        console.error('Error parsing response:', e);
+      }
+      console.error(errorMessage);
+      return;
+    }
+
+    // Proceed with video processing
     if (!videoRef.current) return;
     const video = videoRef.current;
     video.play();
@@ -46,7 +66,6 @@ export default function VideoDetection(): JSX.Element {
         clearInterval(interval);
         setProcessing(false);
         setProgress(100);
-        downloadZip();
         return;
       }
 
@@ -62,44 +81,81 @@ export default function VideoDetection(): JSX.Element {
       if (detections) {
         const leftEye = detections.landmarks.getLeftEye();
         const rightEye = detections.landmarks.getRightEye();
-        cropAndStoreEye(leftEye, 'left', video.currentTime);
-        cropAndStoreEye(rightEye, 'right', video.currentTime);
+        await cropAndStoreEye(leftEye, 'left', video.currentTime);
+        await cropAndStoreEye(rightEye, 'right', video.currentTime);
       }
 
       setProgress((video.currentTime / video.duration) * 100);
     }, 1000 / framePerSecond);
   };
 
-  const cropAndStoreEye = (
+  const cropAndStoreEye = async (
     eyeLandmarks: faceapi.Point[],
     eyeType: 'left' | 'right',
     currentTime: number
   ) => {
-    // console.log(currentTime);
     if (!videoRef.current) return;
     const video = videoRef.current;
 
     const canvas = document.createElement('canvas');
     const { x, y } = eyeLandmarks[0];
-    const width = eyeLandmarks[3].x - eyeLandmarks[0].x;
-    const height = eyeLandmarks[4].y - eyeLandmarks[1].y;
+    const padding = 55; // Increase padding
+
+    const eyeWidth = eyeLandmarks[3].x - eyeLandmarks[0].x;
+    const eyeHeight = eyeLandmarks[4].y - eyeLandmarks[1].y;
+
+    // Increase width and height by additional margins
+    const width = eyeWidth + padding * 2; // Extra space on left and right
+    const height = eyeHeight + padding * 2; // Extra space on top and bottom
+
+    // Adjust the x and y coordinates to account for padding
+    const xWithPadding = eyeLandmarks[0].x - padding;
+    const yWithPadding = eyeLandmarks[1].y - padding;
 
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.drawImage(video, x, y, width, height, 0, 0, width, height);
+      ctx.drawImage(
+        video,
+        xWithPadding,
+        yWithPadding,
+        eyeWidth + padding * 2,
+        eyeHeight + padding * 2,
+        0,
+        0,
+        width,
+        height
+      );
 
+      // Convert the canvas to a Blob
       canvas.toBlob(async (blob) => {
         if (blob) {
           const timestamp = currentTime.toFixed(2).replace('.', '-');
           const filename = `${eyeType}_eye_${timestamp}.png`;
 
           const arrayBuffer = await blob.arrayBuffer();
+          const base64Image = Buffer.from(arrayBuffer).toString('base64');
           if (eyeType === 'left') {
             leftEyeFolder?.file(filename, arrayBuffer);
           } else {
             rightEyeFolder?.file(filename, arrayBuffer);
+          }
+          // Send the image data to the server
+          const response = await fetch('/api/save-eye', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              eyeType,
+              filename,
+              imageData: base64Image,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to save eye image:', await response.json());
           }
         }
       });
@@ -134,6 +190,7 @@ export default function VideoDetection(): JSX.Element {
           {processing ? 'Processing...' : 'Start Eye Detection'}
         </button>
       </div>
+      <ProcessGaze />
       <div className="w-full flex justify-center container items-center mx-auto">
         {processing && (
           <div className="w-full max-w-xl p-4">

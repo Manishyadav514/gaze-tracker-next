@@ -41,13 +41,21 @@ export default function RootLayout({
           name="apple-mobile-web-app-status-bar-style"
           content="black-translucent"
         />
-        <title>MLP PWA </title>
-        {/* <!-- iOS Splash Screens --> */}
+        <title>Gaze Tracker</title>
         <link
           href="/splashscreens/iphone5_splash.png"
           media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)"
           rel="apple-touch-startup-image"
         />
+        {/* remove below two line  */}
+        {/* <script
+          src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"
+          async
+        ></script>
+        <script
+          src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
+          async
+        ></script> */}
       </head>
 
       <body className={inter.className}>{children}</body>
